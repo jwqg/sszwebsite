@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title></title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f4f5f7;
+      --card: #fff;
+      --text: #1a1d21;
+      --muted: #5c6370;
+      --border: #e1e4e8;
+      --accent: #2563eb;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #121418;
+        --card: #1c1f26;
+        --text: #eef0f3;
+        --muted: #9aa3b2;
+        --border: #2a3038;
+        --accent: #60a5fa;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    header {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 0.5rem;
+    }
+    h1 { font-size: 1.35rem; font-weight: 600; margin: 0 0 0.25rem; }
+    .hint {
+      font-size: 0.875rem;
+      color: var(--muted);
+      margin: 0;
+    }
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 1rem;
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .card img {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      background: var(--bg);
+      display: block;
+    }
+    .card-body { padding: 0.85rem 1rem 1rem; flex: 1; display: flex; flex-direction: column; gap: 0.35rem; }
+    .name { font-weight: 600; font-size: 1rem; margin: 0; }
+    .price { color: var(--accent); font-weight: 700; font-size: 1.05rem; margin: 0; }
+    .desc { font-size: 0.8125rem; color: var(--muted); margin: 0; flex: 1; }
+    .status {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 1rem;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .status.error { color: #b91c1c; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 id="ui-title"></h1>
+    <p id="ui-subtitle" class="hint"></p>
+  </header>
+  <p id="status" class="status" hidden></p>
+  <main id="grid" aria-live="polite"></main>
+
+  <script>
+(function () {
+  document.title = "\u5546\u54c1\u5c55\u793a";
+  document.getElementById("ui-title").textContent = "\u5546\u54c1\u5c55\u793a";
+  document.getElementById("ui-subtitle").textContent =
+    "\u6570\u636e\u6765\u81ea products.json\uff1b\u672c\u5730\u8bf7\u7528\u9759\u6001\u670d\u52a1\u6253\u5f00\uff08\u89c1\u9875\u811a\uff09\uff0c\u52ff\u7528\u78c1\u76d8\u8def\u5f84\u76f4\u63a5\u53cc\u51fb\u6253\u5f00\u3002";
+
+  var foot = document.createElement("footer");
+  foot.className = "hint";
+  foot.style.cssText = "max-width:960px;margin:0 auto;padding:1.5rem 1rem 2rem;";
+  foot.innerHTML =
+    "\u672c\u5730\u9884\u89c8\uff1a\u5728\u9879\u76ee\u6839\u76ee\u5f55\u6253\u5f00\u7ec8\u7aef\uff0c\u6267\u884c <strong>python -m http.server 8080</strong>\uff0c\u6d4f\u89c8\u5668\u6253\u5f00 <strong>http://127.0.0.1:8080/</strong>\u3002\u4fee\u6539\u5546\u54c1\u8bf7\u7f16\u8f91 products.json \u4e0e images \u76ee\u5f55\u4e0b\u56fe\u7247\u3002";
+  document.body.appendChild(foot);
+})();
+  </script>
+
+  <script>
+(function () {
+  var grid = document.getElementById("grid");
+  var statusEl = document.getElementById("status");
+
+  function showStatus(message, isError) {
+    statusEl.textContent = message;
+    statusEl.hidden = false;
+    statusEl.className = "status" + (isError ? " error" : "");
+  }
+
+  function hideStatus() {
+    statusEl.hidden = true;
+    statusEl.textContent = "";
+    statusEl.className = "status";
+  }
+
+  function formatPrice(value) {
+    var n = Number(value);
+    if (!Number.isFinite(n)) return String(value);
+    return "\u00a5" + n.toFixed(0);
+  }
+
+  function normalizeItem(raw, index) {
+    if (!raw || typeof raw !== "object") return null;
+    var id = raw.id != null ? String(raw.id) : "item-" + index;
+    var name = raw.name != null ? String(raw.name).trim() : "";
+    var image = raw.image != null ? String(raw.image).trim() : "";
+    var description = raw.description != null ? String(raw.description).trim() : "";
+    if (!name) return null;
+    return { id: id, name: name, price: raw.price, image: image, description: description };
+  }
+
+  function render(list) {
+    grid.innerHTML = "";
+    if (!list.length) {
+      showStatus(
+        "\u6682\u65e0\u6709\u6548\u5546\u54c1\u6570\u636e\uff0c\u8bf7\u68c0\u67e5 products.json\u3002",
+        true
+      );
+      return;
+    }
+    hideStatus();
+    list.forEach(function (item) {
+      var article = document.createElement("article");
+      article.className = "card";
+      article.setAttribute("data-id", item.id);
+
+      if (item.image) {
+        var img = document.createElement("img");
+        img.src = item.image;
+        img.alt = item.name;
+        img.loading = "lazy";
+        img.decoding = "async";
+        img.onerror = function () {
+          var placeholder = document.createElement("div");
+          placeholder.style.cssText =
+            "aspect-ratio:4/3;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:0.85rem;color:var(--muted);padding:0.5rem;text-align:center;";
+          placeholder.textContent = "\u56fe\u7247\u52a0\u8f7d\u5931\u8d25\uff1a" + item.image;
+          img.replaceWith(placeholder);
+        };
+        article.appendChild(img);
+      }
+
+      var body = document.createElement("div");
+      body.className = "card-body";
+      var h = document.createElement("h2");
+      h.className = "name";
+      h.textContent = item.name;
+      body.appendChild(h);
+      var p = document.createElement("p");
+      p.className = "price";
+      p.textContent = formatPrice(item.price);
+      body.appendChild(p);
+      if (item.description) {
+        var desc = document.createElement("p");
+        desc.className = "desc";
+        desc.textContent = item.description;
+        body.appendChild(desc);
+      }
+      article.appendChild(body);
+      grid.appendChild(article);
+    });
+  }
+
+  fetch("products.json", { cache: "no-store" })
+    .then(function (res) {
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return res.json();
+    })
+    .then(function (data) {
+      if (!Array.isArray(data)) throw new Error("not array");
+      var list = [];
+      data.forEach(function (raw, i) {
+        var item = normalizeItem(raw, i);
+        if (item) list.push(item);
+      });
+      render(list);
+    })
+    .catch(function (err) {
+      console.error(err);
+      showStatus(
+        "\u65e0\u6cd5\u52a0\u8f7d products.json\u3002\u82e5\u4e3a\u672c\u673a\u53cc\u51fb\u6253\u5f00\uff0c\u8bf7\u5728\u672c\u76ee\u5f55\u6267\u884c\uff1apython -m http.server 8080\uff0c\u7136\u540e\u8bbf\u95ee http://127.0.0.1:8080/",
+        true
+      );
+    });
+})();
+  </script>
+</body>
+</html>

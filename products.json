@@ -1,0 +1,23 @@
+[
+  {
+    "id": "demo-01",
+    "name": "示例商品一",
+    "price": 99,
+    "image": "images/sample-1.svg",
+    "description": "替换为真实介绍；图片可改为 jpg/png/webp，路径与文件名需与 JSON 一致。"
+  },
+  {
+    "id": "demo-02",
+    "name": "示例商品二",
+    "price": 158,
+    "image": "images/sample-2.svg",
+    "description": "在 products.json 中增删条目即可维护商品列表。"
+  },
+  {
+    "id": "demo-03",
+    "name": "示例商品三",
+    "price": 268,
+    "image": "images/sample-3.svg",
+    "description": "部署到静态托管后，修改本文件并推送即可更新线上内容。"
+  }
+]
